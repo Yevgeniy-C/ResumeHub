@@ -1,0 +1,70 @@
+﻿@model ProfileViewModel
+
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<h1>@ResumeHub.Service.Localization.Languages["en"].GetLabel("MyProfile"):</h1>
+<div class="row">
+    <div class="col-sm-8">
+        <form action="/profile" method="post" class="form">
+            <input type="hidden" name="ProfileId" value="@Model.ProfileId" />
+            @Html.AntiForgeryToken()
+
+
+            <div class="form-group">
+                <select name="ProfileStatus" class="text">
+                    @foreach (int psv in Enum.GetValues(typeof(ResumeHub.DAL.Models.ProfileStatusEnum))) {
+                        if ((int)Model.ProfileStatus == psv) {
+                            <option value="@psv" selected="selected">@ResumeHub.Service.Localization.Languages["en"].GetLabel("ProfileStatusEnum" + Enum.GetName(typeof(ResumeHub.DAL.Models.ProfileStatusEnum), psv))</option>
+                        }
+                        else {
+                            <option value="@psv">@ResumeHub.Service.Localization.Languages["en"].GetLabel("ProfileStatusEnum" + Enum.GetName(typeof(ResumeHub.DAL.Models.ProfileStatusEnum), psv))</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Profile Name</label>
+                <input name="ProfileName" type="text" value="@Model.ProfileName" />
+                <div class="error">@Html.ValidationMessageFor(m => m.ProfileName)</div>
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input name="FirstName" type="text" value="@Model.FirstName" />
+                <div class="error">@Html.ValidationMessageFor(m => m.FirstName)</div>
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input name="LastName" type="text" value="@Model.LastName" />
+                <div class="error">@Html.ValidationMessageFor(m => m.LastName)</div>
+            </div>
+            <button class="button">Save</button>
+        </form>
+    </div>
+
+    <div class="col-sm-4">
+        <form action="/profile/uploadimage" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="ProfileId" value="@Model.ProfileId" />
+            @Html.AntiForgeryToken()
+            @if (!String.IsNullOrEmpty(Model.ProfileImage))
+            {
+                <img src="@Model.ProfileImage" class="profileimage" />
+            }
+            <p>
+                <input type="file" name="file" />
+            </p>
+            <button class="button">Save</button>
+        </form>
+    </div>
+</div>
+
+<hr/>
+
+<h1>I know :</h1>
+<div class="row">
+    <div class="col-sm-12">
+        <component type="typeof(ResumeHubUI.Pages.ProfileSkillEditor)" render-mode="WebAssembly"/>
+    </div>
+</div>
+<script src="_framework/blazor.webassembly.js"></script>

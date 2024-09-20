@@ -1,0 +1,20 @@
+﻿@model bool
+
+@if (Model)
+{
+    <li class="nav-item">
+        <a class="nav-link text-dark" href="/profile">Profile</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-dark" href="/profile/posts">My articles</a>
+    </li>
+}
+else
+{
+    <li class="nav-item">
+        <a class="nav-link text-dark" href="/login">Authorization</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-dark" href="/register">Registration</a>
+    </li>
+}

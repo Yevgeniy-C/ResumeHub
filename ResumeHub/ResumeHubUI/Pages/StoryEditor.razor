@@ -1,0 +1,209 @@
+@page "/fetchstory"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>My post</PageTitle>
+
+@if (post == null)
+{
+    <p><em>Loading . . .</em></p>
+}
+else
+{
+    <div class="col-xs-12">
+        <select @bind="post.Status" class="text">
+            @foreach (var item in PostStatusList) {
+                <option value="@((int)item.PostStatus)">@item.Title</option>
+            }
+        </select>
+    </div>
+
+    <div class="col-xs-12 mt-3">
+        <input type="text" @bind="post.Title" class="text" placeholder="Article name" />
+
+        @if (errors.Errors.ContainsKey("Title")) {
+            <div class="error">@errors.Errors["Title"]</div>
+        }
+    </div>
+
+    <div class="col-xs-12 mt-3">
+        <textarea @bind="post.Intro" class="text" placeholder="Description"></textarea>
+        @if (errors.Errors.ContainsKey("Intro")) {
+            <div class="error">@errors.Errors["Intro"]</div>
+        }
+    </div>
+
+    <div class="col-md-12 mt-3">
+        <label>Text</label>
+        <div class="rich-eritor">
+        @{
+            int index = 0;
+        }
+
+        @foreach(var item in post.ContentItems) {
+            if (item.ContentItemType == ContentItem.ContentItemTypeEnum.Text) {
+                <textarea @bind="item.Value" rows="1" class="text" id="contentInput@(index)"
+                    oninput="this.style.height='auto';this.style.height = (this.scrollHeight)+'px';"
+                    >
+
+                </textarea>
+            }
+            if (item.ContentItemType == ContentItem.ContentItemTypeEnum.Image) {
+                <div class="editpost-image">
+                    @if (String.IsNullOrEmpty(item.Value)) {
+                        <img src="/data/empty-image.jpg" class="post-image" />
+                    }
+                    else {
+                        <img src="@item.Value" class="post-image" />
+                    }
+                    @if (isLoading == false) {
+                        <InputFile OnChange="async (InputFileChangeEventArgs e) => { await UploadFile(e, item); }" accept="image/x-png,image/jpeg" />
+                    }
+                </div>
+            }
+
+            index++;
+        }
+        </div>
+    </div>
+    <div class="col-6">
+        @if (savesuccess) {
+            <p class="success">Changes saved successfully</p>
+        }
+        <button class="button" @onclick="Save">Save</button>
+    </div>
+    <div class="col-6 text-end">
+        <button class="button" @onclick="AddPcture">Add image</button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int? postid { get; set; }
+
+    bool isLoading = false;
+
+    private bool savesuccess = false;
+
+    private PostData? post = null;
+
+    private ViewModels.ErrorsViewModel errors = new ViewModels.ErrorsViewModel();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if ((postid ?? 0) == 0) {
+            this.post = new PostData();
+            this.post.ContentItems.Add(
+                new ContentItem(ContentItem.ContentItemTypeEnum.Text)
+            );
+        }
+        else {
+            this.post = await Http.GetFromJsonAsync<PostData>("/profile/postdata/" + (postid ?? 0).ToString());
+        }
+    }
+
+    async Task Save() {
+        if (post == null)
+            return;
+
+        errors = new ViewModels.ErrorsViewModel();
+        var result = await Http.PutAsJsonAsync<PostData>("/profile/post", this.post);
+        if (result != null) {
+            if (result.StatusCode == System.Net.HttpStatusCode.OK) {
+                var resultContent = await result.Content.ReadFromJsonAsync<PostSaveSuccessResult>();
+                this.post.PostId = resultContent?.id;
+
+                this.savesuccess = true;
+                this.StateHasChanged();
+                await Task.Delay(1000);
+                this.savesuccess = false;
+            }
+            else {
+                errors = (await result.Content.ReadFromJsonAsync<ViewModels.ErrorsViewModel>() ?? new ViewModels.ErrorsViewModel());
+            }
+
+        }
+    }
+
+    async Task UploadFile(InputFileChangeEventArgs e, ContentItem item) {
+        if (e.File == null)
+            return;
+
+        using (var ms = e.File.OpenReadStream(6 * 1024 * 1024)) {
+            var content = new MultipartFormDataContent();
+            content.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data");
+            content.Add(new StreamContent(ms, (int)ms.Length), "image", e.File.Name);
+            item.Value = await this.UploadImage(content);
+        }
+    }
+
+    async Task<string> UploadImage(MultipartFormDataContent content) {
+        this.isLoading = true;
+        var result = await Http.PostAsync("/profile/post/image", content);
+        this.isLoading = false;
+
+        if (result.IsSuccessStatusCode) {
+            var postContent = await result.Content.ReadFromJsonAsync<PostImageResult>();
+            return postContent?.Filename ?? "";
+        }
+        return "";        
+    }
+
+    void AddPcture() {
+        this.post?.ContentItems.Add(new ContentItem(ContentItem.ContentItemTypeEnum.Image));
+        this.post?.ContentItems.Add(new ContentItem(ContentItem.ContentItemTypeEnum.Text));
+    }
+
+    class PostImageResult {
+        public string Filename { get; set; } = "";
+    }
+
+    class PostSaveSuccessResult {
+        public int id { get; set; }
+    }
+
+    public class ContentItem {
+        public enum ContentItemTypeEnum { Text, Image, Title }   
+
+        public ContentItem(ContentItemTypeEnum contenttype) {
+            this.ContentItemType = contenttype;
+        }
+
+		public int? PostContentId { get; set; }
+
+		public ContentItemTypeEnum ContentItemType { get; set; }
+		
+        public string Value { get; set; } = "";
+    }
+
+	public class PostData
+	{
+		public int? PostId { get; set; }
+
+		public string Title { get; set; } = "";
+
+		public string Intro { get; set; } = "";
+
+		public List<ContentItem> ContentItems { get; set; } = new List<ContentItem>();
+
+		public int Status { get; set; }
+    }
+
+    public enum PostStatusEnum { Private, Public }
+
+    public class PostStatusListItem {
+        public PostStatusListItem (PostStatusEnum postStatus, string title) {
+            this.PostStatus = postStatus;
+            this.Title = title;
+        }
+
+        public PostStatusEnum PostStatus { get; set; }
+        public string Title { get; set; } = null!;
+    }
+
+    List<PostStatusListItem> PostStatusList = new List<PostStatusListItem>() {
+        new PostStatusListItem(PostStatusEnum.Private, "Unpublished"),
+        new PostStatusListItem(PostStatusEnum.Public, "Published")
+    };
+}

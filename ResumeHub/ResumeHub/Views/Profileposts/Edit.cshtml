@@ -1,0 +1,16 @@
+@model PostViewModel 
+
+<div class="row">
+    @if (Model.PostId == null) {
+        ViewData["Title"] = "New article";
+        <h1>New article</h1>
+    } 
+    else
+    {
+        ViewData["Title"] = "Edit";
+        <h1>Edit</h1>
+    }
+    <component type="typeof(ResumeHubUI.Pages.StoryEditor)" render-mode="WebAssembly" param-postid="@Model.PostId" />
+</div>
+
+<script src="~/_framework/blazor.webassembly.js"></script>
